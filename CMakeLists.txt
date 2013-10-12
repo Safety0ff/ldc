@@ -167,20 +167,22 @@ set(LDC_GENERATED
 # Gather source files.
 #
 include(GetGitRevisionDescription)
-git_get_exact_tag(TAG)
-if(NOT TAG MATCHES "NOTFOUND")
+git_get_version(TAG REFSPEC HASH MODIFIED)
+if(TAG AND NOT TAG MATCHES "NOTFOUND")
     if(TAG MATCHES "v[0-9].*")
         # For a version tag, remove the leading 'v'.
         string(SUBSTRING "${TAG}" 1 -1 LDC_VERSION)
     else()
         set(LDC_VERSION "${TAG}")
     endif()
-else()
-    get_git_head_revision(REFSPEC HASH)
-    if(NOT HASH STREQUAL "GITDIR-NOTFOUND")
-        string(SUBSTRING "${HASH}" 0 6 LDC_VERSION)
-    endif()
+elseif(HASH AND NOT HASH MATCHES "NOTFOUND")
+    string(SUBSTRING "${HASH}" 0 6 LDC_VERSION)
 endif()
+
+if(MODIFIED AND NOT MODIFIED MATCHES "NOTFOUND")
+    set(LDC_VERSION "${LDC_VERSION}-dirty")
+endif()
+
 message(STATUS "LDC version identifier: ${LDC_VERSION}")
 configure_file(driver/ldc-version.cpp.in driver/ldc-version.cpp)
 
