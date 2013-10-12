@@ -20,10 +20,6 @@ math(EXPR LDC_LLVM_VER ${LLVM_VERSION_MAJOR}*100+${LLVM_VERSION_MINOR})
 #
 find_package(LibConfig++ REQUIRED)
 
-#
-# Get info about used Linux distribution.
-#
-include(GetLinuxDistribution)
 
 #
 # Main configuration.
@@ -469,8 +465,5 @@ install(FILES ${PROJECT_BINARY_DIR}/bin/${LDC_EXE}_install.rebuild.conf DESTINAT
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(BASH_COMPLETION_INST_DIR "${CONF_INST_DIR}/bash_completion.d")
-    if(LINUX_DISTRIBUTION_IS_GENTOO)
-        set(BASH_COMPLETION_INST_DIR "/usr/share/bash-completion")
-    endif()
     install(DIRECTORY bash_completion.d/ DESTINATION ${BASH_COMPLETION_INST_DIR})
 endif()
