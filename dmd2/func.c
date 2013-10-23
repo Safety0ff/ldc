@@ -104,6 +104,8 @@ FuncDeclaration::FuncDeclaration(Loc loc, Loc endloc, Identifier *id, StorageCla
     isArrayOp = false;
     allowInlining = false;
     neverInline = false;
+    alwaysInline = false;
+    inlineHint = false;
     availableExternally = true; // assume this unless proven otherwise
 #endif
 }

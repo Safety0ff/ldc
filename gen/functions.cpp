@@ -805,6 +805,14 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
     {
         fdecl->ir.irFunc->setNeverInline();
     }
+    if (fdecl->alwaysInline)
+    {
+        fdecl->ir.irFunc->setAlwaysInline();
+    }
+    if (fdecl->inlineHint)
+    {
+        fdecl->ir.irFunc->setInlineHint();
+    }
 
     if (fdecl->llvmInternal == LLVMglobal_crt_ctor || fdecl->llvmInternal == LLVMglobal_crt_dtor)
     {

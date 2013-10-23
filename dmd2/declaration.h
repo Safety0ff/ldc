@@ -945,6 +945,8 @@ struct FuncDeclaration : Declaration
 
     // true if set with the pragma(LDC_never_inline); stmt
     bool neverInline;
+    bool inlineHint;
+    bool alwaysInline;
 
     // true if has inline assembler
     bool inlineAsm;

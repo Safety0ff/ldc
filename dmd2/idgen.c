@@ -280,6 +280,8 @@ Msgtable msgtable[] =
     { "LDC_va_arg" },
     { "LDC_verbose" },
     { "LDC_allow_inline" },
+    { "LDC_always_inline" },
+    { "LDC_inline_hint" },
     { "LDC_never_inline" },
     { "LDC_inline_asm" },
     { "LDC_inline_ir" },

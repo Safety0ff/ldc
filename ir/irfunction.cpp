@@ -96,3 +96,14 @@ void IrFunction::setAlwaysInline()
     func->addFnAttr(llvm::Attribute::AlwaysInline);
 #endif
 }
+
+void IrFunction::setInlineHint()
+{
+#if LDC_LLVM_VER >= 303
+    func->addFnAttr(llvm::Attribute::InlineHint);
+#elif LDC_LLVM_VER == 302
+    func->addFnAttr(llvm::Attributes::InlineHint);
+#else
+    func->addFnAttr(llvm::Attribute::InlineHint);
+#endif
+}

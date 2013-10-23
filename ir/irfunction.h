@@ -95,6 +95,7 @@ struct IrFunction
 
     // annotations
     void setNeverInline();
+    void setInlineHint();
     void setAlwaysInline();
 
     llvm::Function* func;

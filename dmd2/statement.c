@@ -3001,6 +3001,14 @@ Statement *PragmaStatement::semantic(Scope *sc)
     {
         sc->func->neverInline = true;
     }
+    else if (ident == Id::LDC_always_inline)
+    {
+        sc->func->alwaysInline = true;
+    }
+    else if (ident == Id::LDC_inline_hint)
+    {
+        sc->func->inlineHint = true;
+    }
 #endif
 #if DMDV2
     else if (ident == Id::startaddress)
