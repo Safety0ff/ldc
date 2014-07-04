@@ -14,8 +14,6 @@
 #ifndef LDC_IR_IRDSYMBOL_H
 #define LDC_IR_IRDSYMBOL_H
 
-#include <set>
-
 struct IrModule;
 struct IrFunction;
 struct IrAggr;
@@ -33,7 +31,6 @@ namespace llvm {
 
 struct IrDsymbol
 {
-    static std::set<IrDsymbol*> list;
     static void resetAll();
 
     // overload all of these to make sure
@@ -44,12 +41,16 @@ struct IrDsymbol
 
     void reset();
 
-    Module* DModule;
+private:
+    // Intrusive linear linked list
+    IrDsymbol* next;
+    static IrDsymbol* root;
+    static size_t count;
+    void link();
+    void unlink();
+public:
 
-    bool resolved;
-    bool declared;
-    bool initialized;
-    bool defined;
+    Module* DModule;
 
     IrModule* irModule;
 
@@ -64,6 +65,12 @@ struct IrDsymbol
     };
     IrField* irField;
     IrVar* getIrVar();
+
+    bool resolved;
+    bool declared;
+    bool initialized;
+    bool defined;
+
     llvm::Value*& getIrValue();
 
     bool isSet();

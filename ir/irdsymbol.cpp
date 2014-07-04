@@ -12,27 +12,51 @@
 #include "ir/irdsymbol.h"
 #include "ir/irvar.h"
 
-std::set<IrDsymbol*> IrDsymbol::list;
+// redundant initializers
+IrDsymbol* IrDsymbol::root = NULL;
+size_t IrDsymbol::count = 0;
+
+void IrDsymbol::link()
+{
+    next = root;
+    root = this;
+    ++count;
+}
+
+void IrDsymbol::unlink()
+{
+    IrDsymbol** ppnode = &root;
+    IrDsymbol* pnode = root;
+    --count;
+    while (pnode != this)
+    {
+        ppnode = &pnode->next;
+        pnode = pnode->next;
+    }
+    *ppnode = next;
+}
 
 void IrDsymbol::resetAll()
 {
-    Logger::println("resetting %zu Dsymbols", list.size());
-    std::set<IrDsymbol*>::iterator it;
-    for(it = list.begin(); it != list.end(); ++it)
-        (*it)->reset();
+    Logger::println("resetting %zu Dsymbols", count);
+    IrDsymbol* it = root;
+
+    while (it)
+    {
+        it->reset();
+        it = it->next;
+    }
 }
 
 IrDsymbol::IrDsymbol()
 {
-    bool incr = list.insert(this).second;
-    assert(incr);
+    link();
     reset();
 }
 
 IrDsymbol::IrDsymbol(const IrDsymbol& s)
 {
-    bool incr = list.insert(this).second;
-    assert(incr);
+    link();
     DModule = s.DModule;
     irModule = s.irModule;
     irAggr = s.irAggr;
@@ -48,7 +72,7 @@ IrDsymbol::IrDsymbol(const IrDsymbol& s)
 
 IrDsymbol::~IrDsymbol()
 {
-    list.erase(this);
+    unlink();
 }
 
 void IrDsymbol::reset()
@@ -57,10 +81,10 @@ void IrDsymbol::reset()
     irModule = NULL;
     irAggr = NULL;
     irFunc = NULL;
-    resolved = declared = initialized = defined = false;
     irGlobal = NULL;
     irLocal = NULL;
     irField = NULL;
+    resolved = declared = initialized = defined = false;
 }
 
 bool IrDsymbol::isSet()
