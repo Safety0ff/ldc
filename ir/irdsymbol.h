@@ -46,7 +46,6 @@ private:
     IrDsymbol* next;
     IrDsymbol* prev;
     static IrDsymbol* root;
-    static size_t count;
     void link();
     void unlink();
 public:

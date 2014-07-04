@@ -14,11 +14,9 @@
 
 // redundant initializers
 IrDsymbol* IrDsymbol::root = NULL;
-size_t IrDsymbol::count = 0;
 
 void IrDsymbol::link()
 {
-    ++count;
     if (root)
     {
         next = root;
@@ -36,7 +34,6 @@ void IrDsymbol::link()
 
 void IrDsymbol::unlink()
 {
-    --count;
     if (next != this)
     {
         prev->next = next;
@@ -49,17 +46,18 @@ void IrDsymbol::unlink()
 
 void IrDsymbol::resetAll()
 {
-    Logger::println("resetting %zu Dsymbols", count);
-
     if (!root)
         return;
 
     IrDsymbol* it = root;
+    size_t count = 0;
     do
     {
         it->reset();
         it = it->next;
+        ++count;
     } while (it != root);
+    Logger::println("reset %zu Dsymbols", count);
 }
 
 IrDsymbol::IrDsymbol()
