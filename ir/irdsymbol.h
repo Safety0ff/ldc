@@ -14,8 +14,6 @@
 #ifndef LDC_IR_IRDSYMBOL_H
 #define LDC_IR_IRDSYMBOL_H
 
-#include <set>
-
 struct IrModule;
 struct IrFunction;
 struct IrAggr;
@@ -31,42 +29,55 @@ namespace llvm {
     class Value;
 }
 
-struct IrDsymbol
+struct IrDsymbolMetadata
 {
-    static std::set<IrDsymbol*> list;
-    static void resetAll();
-
-    // overload all of these to make sure
-    // the static list is up to date
-    IrDsymbol();
-    IrDsymbol(const IrDsymbol& s);
-    ~IrDsymbol();
-
-    void reset();
-
+    IrDsymbolMetadata();
     Module* DModule;
-
-    bool resolved;
-    bool declared;
-    bool initialized;
-    bool defined;
-
     IrModule* irModule;
-
     IrAggr* irAggr;
-
     IrFunction* irFunc;
-
     IrGlobal* irGlobal;
     union {
         IrLocal* irLocal;
         IrParameter *irParam;
     };
     IrField* irField;
+
+    bool resolved;
+    bool declared;
+    bool initialized;
+    bool defined;
+
     IrVar* getIrVar();
     llvm::Value*& getIrValue();
+    bool isSet() const;
+};
 
-    bool isSet();
+#include <unordered_map>
+
+struct IrDsymbol
+{
+    static std::unordered_map<IrDsymbol*, IrDsymbolMetadata> metadata;
+    static void resetAll();
+
+    const IrDsymbolMetadata operator()() const;
+    IrDsymbolMetadata& get();
+    llvm::Value*& getIrValue();
+
+    void set(IrDsymbolMetadata);
+    void setResolved();
+    void setDeclared();
+    void setInitialized();
+    void setDefined();
+
+    void setDModule(Module*);
+    void setIrModule(IrModule*);
+    void setIrAggr(IrAggr*);
+    void setIrFunc(IrFunction*);
+    void setIrGlobal(IrGlobal*);
+    void setIrLocal(IrLocal*);
+    void setIrParam(IrParameter*);
+    void setIrField(IrField*);
 };
 
 #endif

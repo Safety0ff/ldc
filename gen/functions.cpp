@@ -491,7 +491,7 @@ static llvm::Function* DtoDeclareVaFunction(FuncDeclaration* fdecl)
         func = GET_INTRINSIC_DECL(vaend);
     assert(func);
 
-    fdecl->ir.irFunc->func = func;
+    fdecl->ir().irFunc->func = func;
     return func;
 }
 
@@ -504,8 +504,9 @@ void DtoResolveFunction(FuncDeclaration* fdecl)
         return; // ignore declaration completely
     }
 
-    if (fdecl->ir.resolved) return;
-    fdecl->ir.resolved = true;
+    IrDsymbolMetadata& md = fdecl->ir.get();
+    if (md.resolved) return;
+    md.resolved = true;
 
     Type *type = fdecl->type;
     // If errors occurred compiling it, such as bugzilla 6118
@@ -526,10 +527,11 @@ void DtoResolveFunction(FuncDeclaration* fdecl)
             {
                 Logger::println("magic va_arg found");
                 fdecl->llvmInternal = LLVMva_arg;
-                fdecl->ir.resolved = true;
-                fdecl->ir.declared = true;
-                fdecl->ir.initialized = true;
-                fdecl->ir.defined = true;
+                //md.resolved = true;
+                md.declared = true;
+                md.initialized = true;
+                md.defined = true;
+
                 return; // this gets mapped to an instruction so a declaration makes no sence
             }
             else if (tempdecl->llvmInternal == LLVMva_start)
@@ -555,17 +557,17 @@ void DtoResolveFunction(FuncDeclaration* fdecl)
                     fatal();
                 }
                 fdecl->llvmInternal = LLVMinline_asm;
-                fdecl->ir.resolved = true;
-                fdecl->ir.declared = true;
-                fdecl->ir.initialized = true;
-                fdecl->ir.defined = true;
+                //md.resolved = true;
+                md.declared = true;
+                md.initialized = true;
+                md.defined = true;
                 return; // this gets mapped to a special inline asm call, no point in going on.
             }
             else if (tempdecl->llvmInternal == LLVMinline_ir)
             {
                 fdecl->llvmInternal = LLVMinline_ir;
                 fdecl->linkage = LINKc;
-                fdecl->ir.defined = true;
+                md.defined = true;
                 Type* type = fdecl->type;
                 assert(type->ty == Tfunction);
                 static_cast<TypeFunction*>(type)->linkage = LINKc;
@@ -735,8 +737,9 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
 {
     DtoResolveFunction(fdecl);
 
-    if (fdecl->ir.declared) return;
-    fdecl->ir.declared = true;
+    IrDsymbolMetadata& md = fdecl->ir.get();
+    if (md.declared) return;
+    md.declared = true;
 
     IF_LOG Logger::println("DtoDeclareFunction(%s): %s", fdecl->toPrettyChars(), fdecl->loc.toChars());
     LOG_SCOPE;
@@ -759,8 +762,8 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
     Type* t = fdecl->type->toBasetype();
     TypeFunction* f = static_cast<TypeFunction*>(t);
 
-    if (!fdecl->ir.irFunc) {
-        fdecl->ir.irFunc = new IrFunction(fdecl);
+    if (!md.irFunc) {
+        md.irFunc = new IrFunction(fdecl);
     }
 
     LLFunction* vafunc = 0;
@@ -812,7 +815,7 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
     IF_LOG Logger::cout() << "func = " << *func << std::endl;
 
     // add func to IRFunc
-    fdecl->ir.irFunc->func = func;
+    md.irFunc->func = func;
 
     // parameter attributes
     if (!fdecl->isIntrinsic()) {
@@ -834,7 +837,7 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
 
     if (fdecl->neverInline)
     {
-        fdecl->ir.irFunc->setNeverInline();
+        md.irFunc->setNeverInline();
     }
 
     if (fdecl->llvmInternal == LLVMglobal_crt_ctor || fdecl->llvmInternal == LLVMglobal_crt_dtor)
@@ -851,13 +854,13 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
 
         if (irFty.arg_sret) {
             iarg->setName(".sret_arg");
-            fdecl->ir.irFunc->retArg = iarg;
+            md.irFunc->retArg = iarg;
             ++iarg;
         }
 
         if (irFty.arg_this) {
             iarg->setName(".this_arg");
-            fdecl->ir.irFunc->thisArg = iarg;
+            md.irFunc->thisArg = iarg;
 
             VarDeclaration* v = fdecl->vthis;
             if (v) {
@@ -865,25 +868,25 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
                 // later for codegen'ing the function, just as normal
                 // parameters below, because it can be referred to in nested
                 // context types. Will be given storage in DtoDefineFunction.
-                assert(!v->ir.irParam);
-                v->ir.irParam = new IrParameter(v, iarg, irFty.arg_this, true);
+                assert(!v->ir().irParam);
+                v->ir.setIrParam(new IrParameter(v, iarg, irFty.arg_this, true));
             }
 
             ++iarg;
         }
         else if (irFty.arg_nest) {
             iarg->setName(".nest_arg");
-            fdecl->ir.irFunc->nestArg = iarg;
-            assert(fdecl->ir.irFunc->nestArg);
+            md.irFunc->nestArg = iarg;
+            assert(md.irFunc->nestArg);
             ++iarg;
         }
 
         if (irFty.arg_argptr) {
             iarg->setName("._arguments");
-            fdecl->ir.irFunc->_arguments = iarg;
+            md.irFunc->_arguments = iarg;
             ++iarg;
             iarg->setName("._argptr");
-            fdecl->ir.irFunc->_argptr = iarg;
+            md.irFunc->_argptr = iarg;
             ++iarg;
         }
 
@@ -898,11 +901,11 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
 
                 VarDeclaration* argvd = argsym->isVarDeclaration();
                 assert(argvd);
-                assert(!argvd->ir.irLocal);
+                assert(!argvd->ir().irLocal);
                 std::string str(argvd->ident->toChars());
                 str.append("_arg");
                 iarg->setName(str);
-                argvd->ir.irParam = new IrParameter(argvd, iarg, irFty.args[paramIndex]);
+                argvd->ir.setIrParam(new IrParameter(argvd, iarg, irFty.args[paramIndex]));
 
                 k++;
             }
@@ -923,21 +926,22 @@ void DtoDefineFunction(FuncDeclaration* fd)
     IF_LOG Logger::println("DtoDefineFunction(%s): %s", fd->toPrettyChars(), fd->loc.toChars());
     LOG_SCOPE;
 
-    if (fd->ir.defined) return;
+    IrDsymbolMetadata& md = fd->ir.get();
+    if (md.defined) return;
 
     if ((fd->type && fd->type->ty == Terror) ||
         (fd->type && fd->type->ty == Tfunction && static_cast<TypeFunction *>(fd->type)->next == NULL) ||
         (fd->type && fd->type->ty == Tfunction && static_cast<TypeFunction *>(fd->type)->next->ty == Terror))
     {
         IF_LOG Logger::println("Ignoring; has error type, no return type or returns error type");
-        fd->ir.defined = true;
+        md.defined = true;
         return;
     }
 
     if (fd->isUnitTestDeclaration() && !global.params.useUnitTests)
     {
         IF_LOG Logger::println("No code generation for unit test declaration %s", fd->toChars());
-        fd->ir.defined = true;
+        md.defined = true;
         return;
     }
 
@@ -948,7 +952,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
          * Try to reproduce those errors, and then fail.
          */
         error(fd->loc, "errors compiling function %s", fd->toPrettyChars());
-        fd->ir.defined = true;
+        md.defined = true;
         return;
     }
     assert(fd->semanticRun == PASSsemantic3done);
@@ -962,17 +966,17 @@ void DtoDefineFunction(FuncDeclaration* fd)
     if (!fd->needsCodegen())
     {
         IF_LOG Logger::println("No code generation for %s", fd->toChars());
-        fd->ir.defined = true;
+        md.defined = true;
         return;
     }
 
     DtoDeclareFunction(fd);
-    assert(fd->ir.declared);
+    assert(md.declared);
 
     // DtoResolveFunction might also set the defined flag for functions we
     // should not touch.
-    if (fd->ir.defined) return;
-    fd->ir.defined = true;
+    if (md.defined) return;
+    md.defined = true;
 
     // We cannot emit nested functions with parents that have not gone through
     // semantic analysis. This can happen as DMD leaks some template instances
@@ -1020,24 +1024,24 @@ void DtoDefineFunction(FuncDeclaration* fd)
     IrFuncTy &irFty = fd->irFty;
 
     // debug info
-    fd->ir.irFunc->diSubprogram = gIR->DBuilder.EmitSubProgram(fd);
+    md.irFunc->diSubprogram = gIR->DBuilder.EmitSubProgram(fd);
 
     Type* t = fd->type->toBasetype();
     TypeFunction* f = static_cast<TypeFunction*>(t);
     // assert(f->irtype);
 
-    llvm::Function* func = fd->ir.irFunc->func;
+    llvm::Function* func = md.irFunc->func;
 
     // set module owner
-    fd->ir.DModule = gIR->dmodule;
+    md.DModule = gIR->dmodule;
 
     // is there a body?
     if (fd->fbody == NULL)
         return;
 
     IF_LOG Logger::println("Doing function body for: %s", fd->toChars());
-    assert(fd->ir.irFunc);
-    IrFunction* irfunction = fd->ir.irFunc;
+    assert(md.irFunc);
+    IrFunction* irfunction = md.irFunc;
     gIR->functions.push_back(irfunction);
 
     if (fd->isMain())
@@ -1105,8 +1109,8 @@ void DtoDefineFunction(FuncDeclaration* fd)
             irfunction->thisArg = thismem;
         }
 
-        assert(fd->vthis->ir.irParam->value == thisvar);
-        fd->vthis->ir.irParam->value = thismem;
+        assert(fd->vthis->ir().irParam->value == thisvar);
+        fd->vthis->ir().irParam->value = thismem;
 
         gIR->DBuilder.EmitLocalVariable(thismem, fd->vthis);
     }
@@ -1132,7 +1136,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
             VarDeclaration* vd = argsym->isVarDeclaration();
             assert(vd);
 
-            IrParameter* irparam = vd->ir.irParam;
+            IrParameter* irparam = vd->ir().irParam;
             assert(irparam);
 
             bool refout = vd->storage_class & (STCref | STCout);
@@ -1176,14 +1180,14 @@ void DtoDefineFunction(FuncDeclaration* fd)
     if (f->linkage == LINKd && f->varargs == 1)
     {
         // _argptr
-        LLValue* argptrmem = DtoRawAlloca(fd->ir.irFunc->_argptr->getType(), 0, "_argptr_mem");
-        new llvm::StoreInst(fd->ir.irFunc->_argptr, argptrmem, gIR->scopebb());
-        fd->ir.irFunc->_argptr = argptrmem;
+        LLValue* argptrmem = DtoRawAlloca(md.irFunc->_argptr->getType(), 0, "_argptr_mem");
+        new llvm::StoreInst(md.irFunc->_argptr, argptrmem, gIR->scopebb());
+        md.irFunc->_argptr = argptrmem;
 
         // _arguments
-        LLValue* argumentsmem = DtoRawAlloca(fd->ir.irFunc->_arguments->getType(), 0, "_arguments_mem");
-        new llvm::StoreInst(fd->ir.irFunc->_arguments, argumentsmem, gIR->scopebb());
-        fd->ir.irFunc->_arguments = argumentsmem;
+        LLValue* argumentsmem = DtoRawAlloca(md.irFunc->_arguments->getType(), 0, "_arguments_mem");
+        new llvm::StoreInst(md.irFunc->_arguments, argumentsmem, gIR->scopebb());
+        md.irFunc->_arguments = argumentsmem;
     }
 
     // output function body

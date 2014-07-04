@@ -594,7 +594,7 @@ llvm::DISubprogram ldc::DIBuilder::EmitSubProgram(FuncDeclaration *fd)
         fd->loc.linnum, // FIXME: scope line
         0, // Flags
         false, // isOptimized
-        fd->ir.irFunc->func
+        fd->ir().irFunc->func
     );
 }
 

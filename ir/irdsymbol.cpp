@@ -12,66 +12,115 @@
 #include "ir/irdsymbol.h"
 #include "ir/irvar.h"
 
-std::set<IrDsymbol*> IrDsymbol::list;
-
-void IrDsymbol::resetAll()
-{
-    Logger::println("resetting %zu Dsymbols", list.size());
-    std::set<IrDsymbol*>::iterator it;
-    for(it = list.begin(); it != list.end(); ++it)
-        (*it)->reset();
-}
-
-IrDsymbol::IrDsymbol()
-{
-    bool incr = list.insert(this).second;
-    assert(incr);
-    reset();
-}
-
-IrDsymbol::IrDsymbol(const IrDsymbol& s)
-{
-    bool incr = list.insert(this).second;
-    assert(incr);
-    DModule = s.DModule;
-    irModule = s.irModule;
-    irAggr = s.irAggr;
-    irFunc = s.irFunc;
-    resolved = s.resolved;
-    declared = s.declared;
-    initialized = s.initialized;
-    defined = s.defined;
-    irGlobal = s.irGlobal;
-    irLocal = s.irLocal;
-    irField = s.irField;
-}
-
-IrDsymbol::~IrDsymbol()
-{
-    list.erase(this);
-}
-
-void IrDsymbol::reset()
+IrDsymbolMetadata::IrDsymbolMetadata()
 {
     DModule = NULL;
     irModule = NULL;
     irAggr = NULL;
     irFunc = NULL;
-    resolved = declared = initialized = defined = false;
     irGlobal = NULL;
     irLocal = NULL;
     irField = NULL;
+    resolved = declared = initialized = defined = false;
 }
 
-bool IrDsymbol::isSet()
+bool IrDsymbolMetadata::isSet() const
 {
     return (irAggr || irFunc || irGlobal || irLocal || irField);
 }
 
-IrVar* IrDsymbol::getIrVar()
+IrVar* IrDsymbolMetadata::getIrVar()
 {
     assert(irGlobal || irLocal || irField);
     return irGlobal ? static_cast<IrVar*>(irGlobal) : irLocal ? static_cast<IrVar*>(irLocal) : static_cast<IrVar*>(irField);
 }
 
-llvm::Value*& IrDsymbol::getIrValue() { return getIrVar()->value; }
+llvm::Value*& IrDsymbolMetadata::getIrValue() { return getIrVar()->value; }
+
+std::unordered_map<IrDsymbol*, IrDsymbolMetadata> IrDsymbol::metadata;
+
+void IrDsymbol::resetAll()
+{
+    Logger::println("resetting %zu Dsymbols", metadata.size());
+    metadata.clear();
+}
+
+const IrDsymbolMetadata IrDsymbol::operator()() const
+{
+    auto it = metadata.find(const_cast<IrDsymbol*>(this));
+    if (it != metadata.end())
+        return it->second;
+    return IrDsymbolMetadata();
+}
+
+IrDsymbolMetadata& IrDsymbol::get()
+{
+    return metadata[this];
+}
+
+llvm::Value*& IrDsymbol::getIrValue() { return metadata[this].getIrValue(); }
+
+void IrDsymbol::set(IrDsymbolMetadata data)
+{
+    metadata[this] = data;
+}
+
+void IrDsymbol::setResolved()
+{
+    metadata[this].resolved = true;
+}
+
+void IrDsymbol::setDeclared()
+{
+    metadata[this].declared = true;
+}
+
+void IrDsymbol::setInitialized()
+{
+    metadata[this].initialized = true;
+}
+
+void IrDsymbol::setDefined()
+{
+    metadata[this].defined = true;
+}
+
+void IrDsymbol::setDModule(Module* mod)
+{
+    metadata[this].DModule = mod;
+}
+
+void IrDsymbol::setIrModule(IrModule* irmod)
+{
+    metadata[this].irModule = irmod;
+}
+
+void IrDsymbol::setIrAggr(IrAggr* irAggr)
+{
+    metadata[this].irAggr = irAggr;
+}
+
+void IrDsymbol::setIrFunc(IrFunction* irFunc)
+{
+    metadata[this].irFunc = irFunc;
+}
+
+void IrDsymbol::setIrGlobal(IrGlobal* irGlobal)
+{
+    metadata[this].irGlobal = irGlobal;
+}
+
+void IrDsymbol::setIrLocal(IrLocal* irLocal)
+{
+    metadata[this].irLocal = irLocal;
+}
+
+void IrDsymbol::setIrParam(IrParameter* irParam)
+{
+    metadata[this].irParam = irParam;
+}
+
+void IrDsymbol::setIrField(IrField* irField)
+{
+    metadata[this].irField = irField;
+}

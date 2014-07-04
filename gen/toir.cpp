@@ -205,7 +205,7 @@ LLConstant* VarExp::toConstElem(IRState* p)
         assert(sdecltype->ty == Tstruct);
         TypeStruct* ts = static_cast<TypeStruct*>(sdecltype);
         DtoResolveStruct(ts->sym);
-        return ts->sym->ir.irAggr->getDefaultInit();
+        return ts->sym->ir().irAggr->getDefaultInit();
     }
 
     if (TypeInfoDeclaration* ti = var->isTypeInfoDeclaration())
@@ -1210,7 +1210,7 @@ LLConstant* CastExp::toConstElem(IRState* p)
         VarDeclaration *vd = static_cast<VarExp*>(e1)->var->isVarDeclaration();
         assert(vd);
         DtoResolveVariable(vd);
-        LLConstant *value = vd->ir.irGlobal ? isaConstant(vd->ir.irGlobal->value) : 0;
+        LLConstant *value = vd->ir().irGlobal ? isaConstant(vd->ir().irGlobal->value) : 0;
         if (!value)
            goto Lerr;
         Type *type = vd->type->toBasetype();
@@ -1377,7 +1377,7 @@ DValue* AddrExp::toElem(IRState* p)
         FuncDeclaration* fd = fv->func;
         assert(fd);
         DtoResolveFunction(fd);
-        return new DFuncValue(fd, fd->ir.irFunc->func);
+        return new DFuncValue(fd, fd->ir().irFunc->func);
     }
     else if (v->isIm()) {
         Logger::println("is immediate");
@@ -1428,7 +1428,7 @@ LLConstant* AddrExp::toConstElem(IRState* p)
         assert(vd);
         assert(vd->type->toBasetype()->ty == Tsarray);
         DtoResolveVariable(vd);
-        assert(vd->ir.irGlobal);
+        assert(vd->ir().irGlobal);
 
         // get index
         LLConstant* index = iexp->e2->toConstElem(p);
@@ -1436,7 +1436,7 @@ LLConstant* AddrExp::toConstElem(IRState* p)
 
         // gep
         LLConstant* idxs[2] = { DtoConstSize_t(0), index };
-        LLConstant *val = isaConstant(vd->ir.irGlobal->value);
+        LLConstant *val = isaConstant(vd->ir().irGlobal->value);
         val = DtoBitCast(val, DtoType(vd->type->pointerTo()));
         LLConstant* gep = llvm::ConstantExpr::getGetElementPtr(val, idxs, true);
 
@@ -1653,7 +1653,7 @@ DValue* DotVarExp::toElem(IRState* p)
         }
         else
         {
-            funcval = fdecl->ir.irFunc->func;
+            funcval = fdecl->ir().irFunc->func;
         }
         assert(funcval);
 
@@ -2142,7 +2142,7 @@ DValue* NewExp::toElem(IRState* p)
         {
             // custom allocator
             DtoResolveFunction(allocator);
-            DFuncValue dfn(allocator, allocator->ir.irFunc->func);
+            DFuncValue dfn(allocator, allocator->ir().irFunc->func);
             DValue* res = DtoCallFunction(loc, NULL, &dfn, newargs);
             mem = DtoBitCast(res->getRVal(), DtoType(ntype->pointerTo()), ".newstruct_custom");
         } else
@@ -2158,7 +2158,7 @@ DValue* NewExp::toElem(IRState* p)
         else {
             assert(ts->sym);
             DtoResolveStruct(ts->sym, loc);
-            DtoAggrCopy(mem, ts->sym->ir.irAggr->getInitSymbol());
+            DtoAggrCopy(mem, ts->sym->ir().irAggr->getInitSymbol());
         }
         if (ts->sym->isNested() && ts->sym->vthis)
             DtoResolveNestedContext(loc, ts->sym, mem);
@@ -2169,7 +2169,7 @@ DValue* NewExp::toElem(IRState* p)
             Logger::println("Calling constructor");
             assert(arguments != NULL);
             DtoResolveFunction(member);
-            DFuncValue dfn(member, member->ir.irFunc->func, mem);
+            DFuncValue dfn(member, member->ir().irFunc->func, mem);
             DtoCallFunction(loc, ts, &dfn, arguments);
         }
         return new DImValue(type, mem);
@@ -2332,7 +2332,7 @@ DValue* AssertExp::toElem(IRState* p)
     {
         Logger::print("calling struct invariant");
         DtoResolveFunction(invdecl);
-        DFuncValue invfunc(invdecl, invdecl->ir.irFunc->func, cond->getRVal());
+        DFuncValue invfunc(invdecl, invdecl->ir().irFunc->func, cond->getRVal());
         DtoCallFunction(loc, NULL, &invfunc, NULL);
     }
 
@@ -2573,7 +2573,7 @@ DValue* DelegateExp::toElem(IRState* p)
             }
         }
 
-        castfptr = func->ir.irFunc->func;
+        castfptr = func->ir().irFunc->func;
     }
 
     castfptr = DtoBitCast(castfptr, dgty->getContainedType(1));
@@ -2822,14 +2822,14 @@ DValue* FuncExp::toElem(IRState* p)
     // We need to actually codegen the function here, as literals are not added
     // to the module member list.
     Declaration_codegen(fd, p);
-    if (!fd->ir.irFunc)
+    if (!fd->ir().irFunc)
     {
         // See DtoDefineFunction for reasons why codegen was suppressed.
         // Instead just declare the function.
         DtoDeclareFunction(fd);
         assert(!fd->isNested());
     }
-    assert(fd->ir.irFunc->func);
+    assert(fd->ir().irFunc->func);
 
     if (fd->isNested()) {
         LLType* dgty = DtoType(type);
@@ -2853,19 +2853,19 @@ DValue* FuncExp::toElem(IRState* p)
                 cval = getNullPtr(getVoidPtrType());
             } else {
                 cval = ad->isClassDeclaration() ? DtoLoad(irfn->thisArg) : irfn->thisArg;
-                cval = DtoLoad(DtoGEPi(cval, 0,ad->vthis->ir.irField->index, ".vthis"));
+                cval = DtoLoad(DtoGEPi(cval, 0,ad->vthis->ir().irField->index, ".vthis"));
             }
         }
         else
             cval = getNullPtr(getVoidPtrType());
         cval = DtoBitCast(cval, dgty->getContainedType(0));
 
-        LLValue* castfptr = DtoBitCast(fd->ir.irFunc->func, dgty->getContainedType(1));
+        LLValue* castfptr = DtoBitCast(fd->ir().irFunc->func, dgty->getContainedType(1));
 
         return new DImValue(type, DtoAggrPair(cval, castfptr, ".func"));
 
     } else {
-        return new DFuncValue(type, fd, fd->ir.irFunc->func);
+        return new DFuncValue(type, fd, fd->ir().irFunc->func);
     }
 }
 
@@ -2899,9 +2899,9 @@ LLConstant* FuncExp::toConstElem(IRState* p)
     // We need to actually codegen the function here, as literals are not added
     // to the module member list.
     Declaration_codegen(fd, p);
-    assert(fd->ir.irFunc->func);
+    assert(fd->ir().irFunc->func);
 
-    return fd->ir.irFunc->func;
+    return fd->ir().irFunc->func;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -3033,7 +3033,7 @@ DValue* StructLiteralExp::toElem(IRState* p)
         assert(ts->sym);
         DtoResolveStruct(ts->sym);
 
-        LLValue* initsym = ts->sym->ir.irAggr->getInitSymbol();
+        LLValue* initsym = ts->sym->ir().irAggr->getInitSymbol();
         initsym = DtoBitCast(initsym, DtoType(ts->pointerTo()));
         return new DVarValue(type, initsym);
     }
@@ -3172,7 +3172,7 @@ LLConstant* StructLiteralExp::toConstElem(IRState* p)
         TypeStruct* ts = static_cast<TypeStruct*>(sdecltype);
         DtoResolveStruct(ts->sym);
 
-        return ts->sym->ir.irAggr->getDefaultInit();
+        return ts->sym->ir().irAggr->getDefaultInit();
     }
 
     // make sure the struct is resolved
@@ -3188,7 +3188,7 @@ LLConstant* StructLiteralExp::toConstElem(IRState* p)
         }
     }
 
-    return sd->ir.irAggr->createInitializerConstant(varInits);
+    return sd->ir().irAggr->createInitializerConstant(varInits);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -3257,7 +3257,7 @@ llvm::Constant* ClassReferenceExp::toConstElem(IRState *p)
             assert(i == nexprs);
         }
 
-        llvm::Constant* constValue = origClass->ir.irAggr->createInitializerConstant(varInits);
+        llvm::Constant* constValue = origClass->ir().irAggr->createInitializerConstant(varInits);
 
         if (constValue->getType() != value->globalVar->getType()->getContainedType(0))
         {

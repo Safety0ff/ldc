@@ -34,8 +34,9 @@
 
 void DtoResolveClass(ClassDeclaration* cd)
 {
-    if (cd->ir.resolved) return;
-    cd->ir.resolved = true;
+    IrDsymbolMetadata& md = cd->ir.get();
+    if (md.resolved) return;
+    md.resolved = true;
 
     IF_LOG Logger::println("DtoResolveClass(%s): %s", cd->toPrettyChars(), cd->loc.toChars());
     LOG_SCOPE;
@@ -52,9 +53,9 @@ void DtoResolveClass(ClassDeclaration* cd)
     DtoType(cd->type);
 
     // create IrAggr
-    assert(cd->ir.irAggr == NULL);
+    assert(md.irAggr == NULL);
     IrAggr* irAggr = new IrAggr(cd);
-    cd->ir.irAggr = irAggr;
+    md.irAggr = irAggr;
 
     // make sure all fields really get their ir field
     for (VarDeclarations::iterator I = cd->fields.begin(),
@@ -62,7 +63,7 @@ void DtoResolveClass(ClassDeclaration* cd)
                                    I != E; ++I)
     {
         VarDeclaration* vd = *I;
-        if (vd->ir.irField == NULL) {
+        if (vd->ir().irField == NULL) {
             new IrField(vd);
         } else {
             IF_LOG Logger::println("class field already exists!!!");
@@ -98,7 +99,7 @@ DValue* DtoNewClass(Loc loc, TypeClass* tc, NewExp* newexp)
     else if (newexp->allocator)
     {
         DtoResolveFunction(newexp->allocator);
-        DFuncValue dfn(newexp->allocator, newexp->allocator->ir.irFunc->func);
+        DFuncValue dfn(newexp->allocator, newexp->allocator->ir().irFunc->func);
         DValue* res = DtoCallFunction(newexp->loc, NULL, &dfn, newexp->newargs);
         mem = DtoBitCast(res->getRVal(), DtoType(tc), ".newclass_custom");
     }
@@ -106,7 +107,7 @@ DValue* DtoNewClass(Loc loc, TypeClass* tc, NewExp* newexp)
     else
     {
         llvm::Function* fn = LLVM_D_GetRuntimeFunction(gIR->module, "_d_newclass");
-        LLConstant* ci = DtoBitCast(tc->sym->ir.irAggr->getClassInfoSymbol(), DtoType(Type::typeinfoclass->type));
+        LLConstant* ci = DtoBitCast(tc->sym->ir().irAggr->getClassInfoSymbol(), DtoType(Type::typeinfoclass->type));
         mem = gIR->CreateCallOrInvoke(fn, ci, ".newclass_gc_alloc").getInstruction();
         mem = DtoBitCast(mem, DtoType(tc), ".newclass_gc");
     }
@@ -120,7 +121,7 @@ DValue* DtoNewClass(Loc loc, TypeClass* tc, NewExp* newexp)
         Logger::println("Resolving outer class");
         LOG_SCOPE;
         DValue* thisval = newexp->thisexp->toElem(gIR);
-        size_t idx = tc->sym->vthis->ir.irField->index;
+        size_t idx = tc->sym->vthis->ir().irField->index;
         LLValue* src = thisval->getRVal();
         LLValue* dst = DtoGEPi(mem,0,idx,"tmp");
         IF_LOG Logger::cout() << "dst: " << *dst << "\nsrc: " << *src << '\n';
@@ -138,7 +139,7 @@ DValue* DtoNewClass(Loc loc, TypeClass* tc, NewExp* newexp)
         Logger::println("Calling constructor");
         assert(newexp->arguments != NULL);
         DtoResolveFunction(newexp->member);
-        DFuncValue dfn(newexp->member, newexp->member->ir.irFunc->func, mem);
+        DFuncValue dfn(newexp->member, newexp->member->ir().irFunc->func, mem);
         return DtoCallFunction(newexp->loc, tc, &dfn, newexp->arguments);
     }
 
@@ -157,7 +158,7 @@ void DtoInitClass(TypeClass* tc, LLValue* dst)
 
     // set vtable field seperately, this might give better optimization
     LLValue* tmp = DtoGEPi(dst,0,0,"vtbl");
-    LLValue* val = DtoBitCast(tc->sym->ir.irAggr->getVtblSymbol(), tmp->getType()->getContainedType(0));
+    LLValue* val = DtoBitCast(tc->sym->ir().irAggr->getVtblSymbol(), tmp->getType()->getContainedType(0));
     DtoStore(val, tmp);
 
     if (!isCPPclass)
@@ -176,7 +177,7 @@ void DtoInitClass(TypeClass* tc, LLValue* dst)
     LLValue* dstarr = DtoGEPi(dst,0,2,"tmp");
 
     // init symbols might not have valid types
-    LLValue* initsym = tc->sym->ir.irAggr->getInitSymbol();
+    LLValue* initsym = tc->sym->ir().irAggr->getInitSymbol();
     initsym = DtoBitCast(initsym, DtoType(tc));
     LLValue* srcarr = DtoGEPi(initsym,0,2,"tmp");
 
@@ -336,7 +337,7 @@ DValue* DtoDynamicCastObject(DValue* val, Type* _to)
     TypeClass* to = static_cast<TypeClass*>(_to->toBasetype());
     DtoResolveClass(to->sym);
 
-    LLValue* cinfo = to->sym->ir.irAggr->getClassInfoSymbol();
+    LLValue* cinfo = to->sym->ir().irAggr->getClassInfoSymbol();
     // unfortunately this is needed as the implementation of object differs somehow from the declaration
     // this could happen in user code as well :/
     cinfo = DtoBitCast(cinfo, funcTy->getParamType(1));
@@ -397,7 +398,7 @@ DValue* DtoDynamicCastInterface(DValue* val, Type* _to)
     // ClassInfo c
     TypeClass* to = static_cast<TypeClass*>(_to->toBasetype());
     DtoResolveClass(to->sym);
-    LLValue* cinfo = to->sym->ir.irAggr->getClassInfoSymbol();
+    LLValue* cinfo = to->sym->ir().irAggr->getClassInfoSymbol();
     // unfortunately this is needed as the implementation of object differs somehow from the declaration
     // this could happen in user code as well :/
     cinfo = DtoBitCast(cinfo, funcTy->getParamType(1));
@@ -424,7 +425,7 @@ LLValue* DtoIndexClass(LLValue* src, ClassDeclaration* cd, VarDeclaration* vd)
     DtoResolveClass(cd);
 
     // vd must be a field
-    IrField* field = vd->ir.irField;
+    IrField* field = vd->ir().irField;
     assert(field);
 
     // get the start pointer
@@ -508,13 +509,12 @@ static LLConstant* build_offti_entry(ClassDeclaration* cd, VarDeclaration* vd)
 {
     std::vector<LLConstant*> inits(2);
 
-    // size_t offset;
-    //
-    assert(vd->ir.irField);
+    IrField* field = vd->ir().irField;
+    assert(field);
     // grab the offset from llvm and the formal class type
-    size_t offset = gDataLayout->getStructLayout(isaStruct(cd->type->ir.type->get()))->getElementOffset(vd->ir.irField->index);
+    size_t offset = gDataLayout->getStructLayout(isaStruct(cd->type->ir().type->get()))->getElementOffset(field->index);
     // offset nested struct/union fields
-    offset += vd->ir.irField->unionOffset;
+    offset += field->unionOffset;
 
     // assert that it matches DMD
     Logger::println("offsets: %lu vs %u", offset, vd->offset);
@@ -531,7 +531,7 @@ static LLConstant* build_offti_entry(ClassDeclaration* cd, VarDeclaration* vd)
 
 static LLConstant* build_offti_array(ClassDeclaration* cd, LLType* arrayT)
 {
-    IrAggr* iraggr = cd->ir.irAggr;
+    IrAggr* iraggr = cd->ir().irAggr;
 
     size_t nvars = iraggr->varDecls.size();
     std::vector<LLConstant*> arrayInits(nvars);
@@ -574,7 +574,7 @@ static LLConstant* build_class_dtor(ClassDeclaration* cd)
         return getNullPtr(getVoidPtrType());
 
     DtoResolveFunction(dtor);
-    return llvm::ConstantExpr::getBitCast(dtor->ir.irFunc->func, getPtrToType(LLType::getInt8Ty(gIR->context())));
+    return llvm::ConstantExpr::getBitCast(dtor->ir().irFunc->func, getPtrToType(LLType::getInt8Ty(gIR->context())));
 }
 
 static unsigned build_classinfo_flags(ClassDeclaration* cd)
@@ -644,7 +644,7 @@ LLConstant* DtoDefineClassInfo(ClassDeclaration* cd)
     assert(cd->type->ty == Tclass);
     TypeClass* cdty = static_cast<TypeClass*>(cd->type);
 
-    IrAggr* ir = cd->ir.irAggr;
+    IrAggr* ir = cd->ir().irAggr;
     assert(ir);
 
     ClassDeclaration* cinfo = Type::typeinfoclass;

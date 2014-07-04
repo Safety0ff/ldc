@@ -36,8 +36,9 @@ void DtoResolveStruct(StructDeclaration* sd)
 void DtoResolveStruct(StructDeclaration* sd, Loc& callerLoc)
 {
     // Make sure to resolve each struct type exactly once.
-    if (sd->ir.resolved) return;
-    sd->ir.resolved = true;
+    IrDsymbolMetadata& md = sd->ir.get();
+    if (md.resolved) return;
+    md.resolved = true;
 
     IF_LOG Logger::println("Resolving struct type: %s (%s)", sd->toChars(), sd->loc.toChars());
     LOG_SCOPE;
@@ -54,7 +55,7 @@ void DtoResolveStruct(StructDeclaration* sd, Loc& callerLoc)
 
     // create the IrAggr
     IrAggr* iraggr = new IrAggr(sd);
-    sd->ir.irAggr = iraggr;
+    md.irAggr = iraggr;
 
     // Set up our field metadata.
     for (VarDeclarations::iterator I = sd->fields.begin(),
@@ -62,7 +63,7 @@ void DtoResolveStruct(StructDeclaration* sd, Loc& callerLoc)
                                    I != E; ++I)
     {
         VarDeclaration *vd = *I;
-        assert(!vd->ir.irField);
+        assert(!vd->ir().irField);
         (void)new IrField(vd);
     }
 }
@@ -99,7 +100,7 @@ LLValue* DtoIndexStruct(LLValue* src, StructDeclaration* sd, VarDeclaration* vd)
     DtoResolveStruct(sd);
 
     // vd must be a field
-    IrField* field = vd->ir.irField;
+    IrField* field = vd->ir().irField;
     assert(field);
 
     // get the start pointer

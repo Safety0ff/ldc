@@ -57,16 +57,18 @@ void IRLandingPadCatchInfo::toIR()
         // nested functions
         if (!catchStmt->var->nestedrefs.dim) {
             assert(!catchStmt->var->ir.irLocal);
-            catchStmt->var->ir.irLocal = new IrLocal(catchStmt->var);
+            IrDsymbolMetadata& md = catchStmt->var->ir.get();
+            md.irLocal = new IrLocal(catchStmt->var);
+
             LLValue* catch_var = gIR->func()->gen->landingPadInfo.getExceptionStorage();
-            catchStmt->var->ir.irLocal->value = gIR->ir->CreateBitCast(catch_var, getPtrToType(DtoType(catchStmt->var->type)));
+            md.irLocal->value = gIR->ir->CreateBitCast(catch_var, getPtrToType(DtoType(catchStmt->var->type)));
         } else {
             // this will alloca if we haven't already and take care of nested refs
             DtoDeclarationExp(catchStmt->var);
 
             // the exception will only be stored in catch_var. copy it over if necessary
             LLValue* exc = gIR->ir->CreateBitCast(DtoLoad(gIR->func()->gen->landingPadInfo.getExceptionStorage()), DtoType(catchStmt->var->type));
-            DtoStore(exc, catchStmt->var->ir.irLocal->value);
+            DtoStore(exc, catchStmt->var->ir().irLocal->value);
         }
     }
 
@@ -194,7 +196,7 @@ void IRLandingPad::constructLandingPad(IRLandingPadScope scope)
             // create next block
             llvm::BasicBlock *next = llvm::BasicBlock::Create(gIR->context(), "eh.next", gIR->topfunc(), gIR->scopeend());
             // get class info symbol
-            LLValue *classInfo = catchItr->catchType->ir.irAggr->getClassInfoSymbol();
+            LLValue *classInfo = catchItr->catchType->ir().irAggr->getClassInfoSymbol();
             // add that symbol as landing pad clause
             landingPad->addClause(llvm::cast<llvm::Constant>(classInfo));
             // call llvm.eh.typeid.for to get class info index in the exception table
