@@ -58,6 +58,7 @@ void IRLandingPadCatchInfo::toIR()
         if (!catchStmt->var->nestedrefs.dim) {
             assert(!catchStmt->var->ir.irLocal);
             catchStmt->var->ir.irLocal = new IrLocal(catchStmt->var);
+            catchStmt->var->ir.dirty();
             LLValue* catch_var = gIR->func()->gen->landingPadInfo.getExceptionStorage();
             catchStmt->var->ir.irLocal->value = gIR->ir->CreateBitCast(catch_var, getPtrToType(DtoType(catchStmt->var->type)));
         } else {

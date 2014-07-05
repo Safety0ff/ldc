@@ -36,6 +36,7 @@ void DtoResolveClass(ClassDeclaration* cd)
 {
     if (cd->ir.resolved) return;
     cd->ir.resolved = true;
+    cd->ir.dirty();
 
     IF_LOG Logger::println("DtoResolveClass(%s): %s", cd->toPrettyChars(), cd->loc.toChars());
     LOG_SCOPE;

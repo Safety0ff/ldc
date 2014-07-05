@@ -57,6 +57,7 @@ public:
 
         if (decl->ir.defined) return;
         decl->ir.defined = true;
+        decl->ir.dirty();
 
         if (decl->type->ty == Terror)
         {   error(decl->loc, "had semantic errors when compiling");
@@ -179,6 +180,7 @@ public:
 
         if (decl->ir.defined) return;
         decl->ir.defined = true;
+        decl->ir.dirty();
 
         assert(decl->isexp);
         assert(decl->objects);
@@ -201,6 +203,7 @@ public:
 
         if (decl->ir.defined) return;
         decl->ir.defined = true;
+        decl->ir.dirty();
 
         if (decl->type->ty == Terror)
         {   error(decl->loc, "had semantic errors when compiling");
@@ -288,6 +291,7 @@ public:
 
         if (decl->ir.defined) return;
         decl->ir.defined = true;
+        decl->ir.dirty();
 
         if (decl->type->ty == Terror)
         {   error(decl->loc, "had semantic errors when compiling");
@@ -327,6 +331,7 @@ public:
 
         if (decl->ir.defined) return;
         decl->ir.defined = true;
+        decl->ir.dirty();
 
         if (!decl->errors && decl->members)
         {
@@ -347,6 +352,7 @@ public:
 
         if (decl->ir.defined) return;
         decl->ir.defined = true;
+        decl->ir.dirty();
 
         if (!decl->errors && decl->members)
         {

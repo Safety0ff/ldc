@@ -20,6 +20,7 @@ IrField::IrField(VarDeclaration* v) : IrVar(v)
 {
     assert(V->ir.irField == NULL && "field for this variable already exists");
     V->ir.irField = this;
+    V->ir.dirty();
 
     if (v->aggrIndex)
     {

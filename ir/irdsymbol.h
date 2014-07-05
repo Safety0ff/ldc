@@ -39,16 +39,14 @@ struct IrDsymbol
     IrDsymbol(const IrDsymbol& s);
     ~IrDsymbol();
 
-    void reset();
-
 private:
     // Intrusive linear linked list
     IrDsymbol* next;
-    static IrDsymbol* root;
+    static IrDsymbol* head;
     static size_t count;
-    void link();
-    void unlink();
+    void reset();
 public:
+    void dirty();
 
     Module* DModule;
 

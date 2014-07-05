@@ -353,7 +353,10 @@ static void DtoCreateNestedContextType(FuncDeclaration* fd) {
                                        I != E; ++I) {
             VarDeclaration* vd = *I;
             if (!vd->ir.irLocal)
+            {
                 vd->ir.irLocal = new IrLocal(vd);
+                vd->ir.dirty();
+            }
 
             vd->ir.irLocal->nestedIndex = types.size();
             vd->ir.irLocal->nestedDepth = depth;

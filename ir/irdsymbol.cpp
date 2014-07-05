@@ -13,50 +13,40 @@
 #include "ir/irvar.h"
 
 // redundant initializers
-IrDsymbol* IrDsymbol::root = NULL;
+IrDsymbol* IrDsymbol::head = NULL;
 size_t IrDsymbol::count = 0;
 
-void IrDsymbol::link()
+void IrDsymbol::dirty()
 {
-    next = root;
-    root = this;
+    if (next)
+        return; // already linked
+    next = head;
+    head = this;
     ++count;
-}
-
-void IrDsymbol::unlink()
-{
-    IrDsymbol** ppnode = &root;
-    IrDsymbol* pnode = root;
-    --count;
-    while (pnode != this)
-    {
-        ppnode = &pnode->next;
-        pnode = pnode->next;
-    }
-    *ppnode = next;
 }
 
 void IrDsymbol::resetAll()
 {
     Logger::println("resetting %zu Dsymbols", count);
-    IrDsymbol* it = root;
+    IrDsymbol* it = head;
 
     while (it)
     {
+        IrDsymbol* tmp = it->next;
         it->reset();
-        it = it->next;
+        it = tmp;
     }
+    head = NULL;
+    count = 0;
 }
 
 IrDsymbol::IrDsymbol()
 {
-    link();
     reset();
 }
 
 IrDsymbol::IrDsymbol(const IrDsymbol& s)
 {
-    link();
     DModule = s.DModule;
     irModule = s.irModule;
     irAggr = s.irAggr;
@@ -68,23 +58,19 @@ IrDsymbol::IrDsymbol(const IrDsymbol& s)
     irGlobal = s.irGlobal;
     irLocal = s.irLocal;
     irField = s.irField;
+    next = NULL;
+    if (s.next)
+        dirty();
 }
 
 IrDsymbol::~IrDsymbol()
 {
-    unlink();
+    assert(!next);
 }
 
 void IrDsymbol::reset()
 {
-    DModule = NULL;
-    irModule = NULL;
-    irAggr = NULL;
-    irFunc = NULL;
-    irGlobal = NULL;
-    irLocal = NULL;
-    irField = NULL;
-    resolved = declared = initialized = defined = false;
+    memset(this, 0, sizeof(*this));
 }
 
 bool IrDsymbol::isSet()

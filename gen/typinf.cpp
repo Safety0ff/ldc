@@ -322,6 +322,7 @@ void DtoResolveTypeInfo(TypeInfoDeclaration* tid)
 {
     if (tid->ir.resolved) return;
     tid->ir.resolved = true;
+    tid->ir.dirty();
 
     // TypeInfo instances (except ClassInfo ones) are always emitted as weak
     // symbols when they are used.
@@ -335,6 +336,7 @@ void TypeInfoDeclaration_codegen(TypeInfoDeclaration *decl, IRState* p)
 
     if (decl->ir.defined) return;
     decl->ir.defined = true;
+    decl->ir.dirty();
 
     std::string mangled(decl->mangle());
     IF_LOG {
@@ -704,6 +706,7 @@ void TypeInfoClassDeclaration_codegen(TypeInfoDeclaration *decl, IRState *p)
     // referenced as "info" member in a (normal) TypeInfo_Interface instance.
     IrGlobal *irg = new IrGlobal(decl);
     decl->ir.irGlobal = irg;
+    decl->ir.dirty();
 
     assert(decl->tinfo->ty == Tclass);
     TypeClass *tc = static_cast<TypeClass *>(decl->tinfo);

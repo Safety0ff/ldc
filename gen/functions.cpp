@@ -506,6 +506,7 @@ void DtoResolveFunction(FuncDeclaration* fdecl)
 
     if (fdecl->ir.resolved) return;
     fdecl->ir.resolved = true;
+    fdecl->ir.dirty();
 
     Type *type = fdecl->type;
     // If errors occurred compiling it, such as bugzilla 6118
@@ -530,6 +531,7 @@ void DtoResolveFunction(FuncDeclaration* fdecl)
                 fdecl->ir.declared = true;
                 fdecl->ir.initialized = true;
                 fdecl->ir.defined = true;
+                fdecl->ir.dirty();
                 return; // this gets mapped to an instruction so a declaration makes no sence
             }
             else if (tempdecl->llvmInternal == LLVMva_start)
@@ -559,6 +561,7 @@ void DtoResolveFunction(FuncDeclaration* fdecl)
                 fdecl->ir.declared = true;
                 fdecl->ir.initialized = true;
                 fdecl->ir.defined = true;
+                fdecl->ir.dirty();
                 return; // this gets mapped to a special inline asm call, no point in going on.
             }
             else if (tempdecl->llvmInternal == LLVMinline_ir)
@@ -566,6 +569,7 @@ void DtoResolveFunction(FuncDeclaration* fdecl)
                 fdecl->llvmInternal = LLVMinline_ir;
                 fdecl->linkage = LINKc;
                 fdecl->ir.defined = true;
+                fdecl->ir.dirty();
                 Type* type = fdecl->type;
                 assert(type->ty == Tfunction);
                 static_cast<TypeFunction*>(type)->linkage = LINKc;
@@ -737,6 +741,7 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
 
     if (fdecl->ir.declared) return;
     fdecl->ir.declared = true;
+    fdecl->ir.dirty();
 
     IF_LOG Logger::println("DtoDeclareFunction(%s): %s", fdecl->toPrettyChars(), fdecl->loc.toChars());
     LOG_SCOPE;
@@ -761,6 +766,7 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
 
     if (!fdecl->ir.irFunc) {
         fdecl->ir.irFunc = new IrFunction(fdecl);
+        fdecl->ir.dirty();
     }
 
     LLFunction* vafunc = 0;
@@ -867,6 +873,7 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
                 // context types. Will be given storage in DtoDefineFunction.
                 assert(!v->ir.irParam);
                 v->ir.irParam = new IrParameter(v, iarg, irFty.arg_this, true);
+                v->ir.dirty();
             }
 
             ++iarg;
@@ -903,7 +910,7 @@ void DtoDeclareFunction(FuncDeclaration* fdecl)
                 str.append("_arg");
                 iarg->setName(str);
                 argvd->ir.irParam = new IrParameter(argvd, iarg, irFty.args[paramIndex]);
-
+                argvd->ir.dirty();
                 k++;
             }
             else
@@ -931,6 +938,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
     {
         IF_LOG Logger::println("Ignoring; has error type, no return type or returns error type");
         fd->ir.defined = true;
+        fd->ir.dirty();
         return;
     }
 
@@ -938,6 +946,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
     {
         IF_LOG Logger::println("No code generation for unit test declaration %s", fd->toChars());
         fd->ir.defined = true;
+        fd->ir.dirty();
         return;
     }
 
@@ -949,6 +958,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
          */
         error(fd->loc, "errors compiling function %s", fd->toPrettyChars());
         fd->ir.defined = true;
+        fd->ir.dirty();
         return;
     }
     assert(fd->semanticRun == PASSsemantic3done);
@@ -963,6 +973,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
     {
         IF_LOG Logger::println("No code generation for %s", fd->toChars());
         fd->ir.defined = true;
+        fd->ir.dirty();
         return;
     }
 
@@ -973,6 +984,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
     // should not touch.
     if (fd->ir.defined) return;
     fd->ir.defined = true;
+    fd->ir.dirty();
 
     // We cannot emit nested functions with parents that have not gone through
     // semantic analysis. This can happen as DMD leaks some template instances
@@ -1030,6 +1042,7 @@ void DtoDefineFunction(FuncDeclaration* fd)
 
     // set module owner
     fd->ir.DModule = gIR->dmodule;
+    fd->ir.dirty();
 
     // is there a body?
     if (fd->fbody == NULL)

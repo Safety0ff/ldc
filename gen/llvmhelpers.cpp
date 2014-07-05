@@ -1031,7 +1031,7 @@ void DtoResolveVariable(VarDeclaration* vd)
         if (vd->ir.resolved) return;
         vd->ir.resolved = true;
         vd->ir.declared = true;
-
+        vd->ir.dirty();
         vd->ir.irGlobal = new IrGlobal(vd);
 
         IF_LOG {
@@ -1110,10 +1110,12 @@ void DtoVarDeclaration(VarDeclaration* vd)
     else if (gIR->func()->retArg && gIR->func()->decl->nrvo_can && gIR->func()->decl->nrvo_var == vd) {
         assert(!isSpecialRefVar(vd) && "Can this happen?");
         vd->ir.irLocal = new IrLocal(vd, gIR->func()->retArg);
+        vd->ir.dirty();
     }
     // normal stack variable, allocate storage on the stack if it has not already been done
     else {
         vd->ir.irLocal = new IrLocal(vd);
+        vd->ir.dirty();
 
         Type* type = isSpecialRefVar(vd) ? vd->type->pointerTo() : vd->type;
 
@@ -1329,6 +1331,7 @@ LLValue* DtoRawVarDeclaration(VarDeclaration* var, LLValue* addr)
         assert(!var->ir.isSet());
         assert(addr);
         var->ir.irLocal = new IrLocal(var, addr);
+        var->ir.dirty();
     }
 
     // return the alloca
@@ -1576,7 +1579,10 @@ IrModule * getIrModule(Module * M)
         M = gIR->func()->decl->getModule();
     assert(M && "null module");
     if (!M->ir.irModule)
+    {
         M->ir.irModule = new IrModule(M, M->srcfile->toChars());
+        M->ir.dirty();
+    }
     return M->ir.irModule;
 }
 
